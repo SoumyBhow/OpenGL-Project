@@ -315,9 +315,6 @@ int main(int argc, char *argv[]) {
   // ...
   glEnable(GL_DEPTH_TEST);
 
-  // Container for projectiles to be implemented in tutorial
-  list<Projectile> projectileList;
-
   // Entering Main Loop
   while (!glfwWindowShouldClose(window)) {
     // Frame time calculation
@@ -345,12 +342,6 @@ int main(int argc, char *argv[]) {
 
     glDrawArrays(GL_TRIANGLES, 0, 36); // 36 vertices, starting at index 0
 
-    // @TODO 2 - Update and draw projectiles
-    for (list<Projectile>::iterator it = projectileList.begin();
-         it != projectileList.end(); it++) {
-      it->Update(dt);
-      it->Draw();
-    }
     // Spinning cube at camera position
     spinningCubeAngle += 180.0f * dt;
 
@@ -446,22 +437,6 @@ int main(int argc, char *argv[]) {
     GLuint viewMatrixLocation =
         glGetUniformLocation(shaderProgram, "viewMatrix");
     glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, &viewMatrix[0][0]);
-
-    // @TODO 2 - Shoot Projectiles
-    //
-    // shoot projectiles on mouse left click
-    // To detect onPress events, we need to check the last state and the current
-    // state to detect the state change Otherwise, you would shoot many
-    // projectiles on each mouse press
-    // ...
-
-    if (lastMouseLeftState == GLFW_RELEASE &&
-        glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-      const float projectileSpeed = 25.0f;
-      projectileList.push_back(Projectile(
-          cameraPosition, projectileSpeed * cameraLookAt, shaderProgram));
-    }
-    lastMouseLeftState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
   }
 
   // Shutdown GLFW
