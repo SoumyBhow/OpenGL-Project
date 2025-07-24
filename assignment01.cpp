@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <iostream>
-#include <list>
 
 #define GLEW_STATIC                                                            \
   1 // This allows linking with Static Library on Windows, without DLL
@@ -24,33 +23,6 @@
 
 using namespace glm;
 using namespace std;
-
-class Projectile {
-public:
-  Projectile(vec3 position, vec3 velocity, int shaderProgram)
-      : mPosition(position), mVelocity(velocity) {
-    mWorldMatrixLocation = glGetUniformLocation(shaderProgram, "worldMatrix");
-  }
-
-  void Update(float dt) { mPosition += mVelocity * dt; }
-
-  void Draw() {
-    // this is a bit of a shortcut, since we have a single vbo, it is already
-    // bound let's just set the world matrix in the vertex shader
-
-    mat4 worldMatrix =
-        translate(mat4(1.0f), mPosition) *
-        rotate(mat4(1.0f), radians(180.0f), vec3(0.0f, 1.0f, 0.0f)) *
-        scale(mat4(1.0f), vec3(0.2f, 0.2f, 0.2f));
-    glUniformMatrix4fv(mWorldMatrixLocation, 1, GL_FALSE, &worldMatrix[0][0]);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-  }
-
-private:
-  GLuint mWorldMatrixLocation;
-  vec3 mPosition;
-  vec3 mVelocity;
-};
 
 GLuint loadTexture(const char *filename);
 
@@ -200,7 +172,7 @@ int main(int argc, char *argv[]) {
 
   // Create Window and rendering context using GLFW, resolution is 800x600
   GLFWwindow *window =
-      glfwCreateWindow(800, 600, "Comp371 - Lab 03", NULL, NULL);
+      glfwCreateWindow(800, 600, "Comp371 - Assignment 1", NULL, NULL);
   if (window == NULL) {
     std::cerr << "Failed to create GLFW window" << std::endl;
     glfwTerminate();
@@ -220,7 +192,12 @@ int main(int argc, char *argv[]) {
   // Load Textures
   GLuint brickTextureID = loadTexture("Textures/brick.jpg");
   GLuint cementTextureID = loadTexture("Textures/cement.jpg");
-
+  GLuint sky_posx = loadTexture("Skybox/posx.jpg");
+  GLuint sky_negx = loadTexture("Skybox/negx.jpg");
+  GLuint sky_posy = loadTexture("Skybox/posy.jpg");
+  GLuint sky_negy = loadTexture("Skybox/negy.jpg");
+  GLuint sky_posz = loadTexture("Skybox/posz.jpg");
+  GLuint sky_negz = loadTexture("Skybox/negz.jpg");
   // Black background
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
@@ -237,7 +214,7 @@ int main(int argc, char *argv[]) {
 
   // Other camera parameters
   float cameraSpeed = 1.0f;
-  float cameraFastSpeed = 2 * cameraSpeed;
+  float cameraFastSpeed = 10 * cameraSpeed;
   float cameraHorizontalAngle = 90.0f;
   float cameraVerticalAngle = 0.0f;
   bool cameraFirstPerson = true; // press 1 or 2 to toggle this variable
@@ -277,15 +254,12 @@ int main(int argc, char *argv[]) {
   glEnable(GL_CULL_FACE);
   glEnable(GL_DEPTH_TEST);
 
-  // Container for projectiles to be implemented in tutorial
-  list<Projectile> projectileList;
-
   glBindVertexArray(texturedCubeVAO);
 
   // variables
   float angle = 0.0f;
   float x, z = 0.0f;
-  float rotationSpeed = 0.2f; // 1 degrees per second
+  float rotationSpeed = 2.0f; // 1 degrees per second
 
   // Entering Main Loop
   while (!glfwWindowShouldClose(window)) {
@@ -295,10 +269,36 @@ int main(int argc, char *argv[]) {
 
     // Each frame, reset color of each pixel to glClearColor
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glDepthMask(GL_FALSE); // Disable depth writing
 
     // Draw textured geometry
     glUseProgram(texturedShaderProgram);
+    mat4 skyboxWorldMatrix = scale(mat4(1.0f), vec3(100.0f));
+    setWorldMatrix(texturedShaderProgram, skyboxWorldMatrix);
+    glCullFace(GL_FRONT); // Add before drawing the skybox
 
+    // Draw each face with the correct texture
+    // Left (-X)
+    glBindTexture(GL_TEXTURE_2D, sky_negx);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    // Back (-Z)
+    glBindTexture(GL_TEXTURE_2D, sky_negz);
+    glDrawArrays(GL_TRIANGLES, 6, 6);
+    // Bottom (-Y)
+    glBindTexture(GL_TEXTURE_2D, sky_negy);
+    glDrawArrays(GL_TRIANGLES, 12, 6);
+    // Front (+Z)
+    glBindTexture(GL_TEXTURE_2D, sky_posz);
+    glDrawArrays(GL_TRIANGLES, 18, 6);
+    // Right (+X)
+    glBindTexture(GL_TEXTURE_2D, sky_posx);
+    glDrawArrays(GL_TRIANGLES, 24, 6);
+    // Top (+Y)
+    glBindTexture(GL_TEXTURE_2D, sky_posy);
+    glDrawArrays(GL_TRIANGLES, 30, 6);
+
+    glDepthMask(GL_TRUE);
+    glCullFace(GL_BACK); // Restore after drawing the skybox
     glActiveTexture(GL_TEXTURE0);
     GLuint textureLocation =
         glGetUniformLocation(texturedShaderProgram, "textureSampler");
@@ -306,20 +306,13 @@ int main(int argc, char *argv[]) {
     glUniform1i(textureLocation,
                 0); // Set our Texture sampler to user Texture Unit 0
 
-    // Draw ground
-    mat4 groundWorldMatrix = translate(mat4(1.0f), vec3(0.0f, -0.01f, 0.0f)) *
-                             scale(mat4(1.0f), vec3(1000.0f, 0.02f, 1000.0f));
-    setWorldMatrix(texturedShaderProgram, groundWorldMatrix);
-
-    glDrawArrays(GL_TRIANGLES, 0, 36); // 36 vertices, starting at index 0
-
     // rate of rotation
     angle = (angle + rotationSpeed * dt); // angles in degrees, but glm expects
                                           // radians (conversion below);
     // glm::mat4 rotationMatrix = glm::rotate(translationMatrix,
     // glm::radians(angle)+radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     //  car vector
-    float radius = 2.0f;
+    float radius = 5.0f;
     vec3 carLocation = vec3(radius * cos(angle), 0.0f, radius * sin(angle));
     mat4 translationMatrix = translate(mat4(1.0f), carLocation);
 
@@ -342,13 +335,6 @@ int main(int argc, char *argv[]) {
 
     // Draw colored geometry
     glUseProgram(colorShaderProgram);
-
-    // Update and draw projectiles
-    for (list<Projectile>::iterator it = projectileList.begin();
-         it != projectileList.end(); ++it) {
-      it->Update(dt);
-      it->Draw();
-    }
 
     // Spinning cube at camera position
     spinningCubeAngle += 180.0f * dt;
@@ -432,7 +418,7 @@ int main(int argc, char *argv[]) {
         vec3(cosf(phi) * cosf(theta), sinf(phi), -cosf(phi) * sinf(theta));
     vec3 cameraSideVector = glm::cross(cameraLookAt, vec3(0.0f, 1.0f, 0.0f));
 
-    glm::normalize(cameraSideVector);
+    cameraSideVector = glm::normalize(cameraSideVector);
 
     // Use camera lookat and side vectors to update positions with ASDW
     if (glfwGetKey(window, GLFW_KEY_0) == GLFW_PRESS) {
@@ -484,13 +470,6 @@ int main(int argc, char *argv[]) {
     // To detect onPress events, we need to check the last state and the current
     // state to detect the state change Otherwise, you would shoot many
     // projectiles on each mouse press
-    if (lastMouseLeftState == GLFW_RELEASE &&
-        glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-      const float projectileSpeed = 25.0f;
-      projectileList.push_back(Projectile(
-          cameraPosition, projectileSpeed * cameraLookAt, colorShaderProgram));
-    }
-    lastMouseLeftState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
   }
 
   glfwTerminate();
