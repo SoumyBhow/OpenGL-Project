@@ -48,11 +48,14 @@ struct TexturedColoredVertex {
 
 // Textured Cube model
 const TexturedColoredVertex texturedCubeVertexArray[] = { // position, color
-    TexturedColoredVertex(vec3(-0.5f, -0.5f, -0.5f), vec3(1.0f, 0.0f, 0.0f),
+    TexturedColoredVertex(vec3(-0.5f, -0.5f, -0.5f), 
+                          vec3(1.0f, 0.0f, 0.0f),
                           vec2(0.0f, 0.0f)), // left - red
-    TexturedColoredVertex(vec3(-0.5f, -0.5f, 0.5f), vec3(1.0f, 0.0f, 0.0f),
+    TexturedColoredVertex(vec3(-0.5f, -0.5f, 0.5f), 
+                          vec3(1.0f, 0.0f, 0.0f),
                           vec2(0.0f, 1.0f)),
-    TexturedColoredVertex(vec3(-0.5f, 0.5f, 0.5f), vec3(1.0f, 0.0f, 0.0f),
+    TexturedColoredVertex(vec3(-0.5f, 0.5f, 0.5f), 
+                          vec3(1.0f, 0.0f, 0.0f),
                           vec2(1.0f, 1.0f)),
 
     TexturedColoredVertex(vec3(-0.5f, -0.5f, -0.5f), vec3(1.0f, 0.0f, 0.0f),
@@ -130,7 +133,11 @@ const TexturedColoredVertex texturedCubeVertexArray[] = { // position, color
     TexturedColoredVertex(vec3(-0.5f, 0.5f, -0.5f), vec3(1.0f, 1.0f, 0.0f),
                           vec2(0.0f, 0.0f)),
     TexturedColoredVertex(vec3(-0.5f, 0.5f, 0.5f), vec3(1.0f, 1.0f, 0.0f),
-                          vec2(0.0f, 1.0f))};
+                          vec2(0.0f, 1.0f))
+};
+
+
+
 
 int createTexturedCubeVertexArrayObject();
 
@@ -254,6 +261,7 @@ int main(int argc, char *argv[]) {
   glEnable(GL_CULL_FACE);
   glEnable(GL_DEPTH_TEST);
 
+  // we only draw cubes
   glBindVertexArray(texturedCubeVAO);
 
   // variables
@@ -263,6 +271,8 @@ int main(int argc, char *argv[]) {
 
   // Entering Main Loop
   while (!glfwWindowShouldClose(window)) {
+
+
     // Frame time calculation
     float dt = glfwGetTime() - lastFrameTime;
     lastFrameTime += dt;
@@ -317,7 +327,7 @@ int main(int argc, char *argv[]) {
     mat4 translationMatrix = translate(mat4(1.0f), carLocation);
 
     glm::mat4 rotationMatrix =
-        glm::rotate(mat4(1.0f), -angle, glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::rotate(mat4(1.0f), -angle+radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
     // Draw simple car to go in circles
     glBindTexture(GL_TEXTURE_2D, cementTextureID);
@@ -332,6 +342,22 @@ int main(int argc, char *argv[]) {
                              translate(mat4(1.0f), vec3(0.0f, 2.5f, 0.0f));
     setWorldMatrix(texturedShaderProgram, carTOPWorldMatrix);
     glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    // set to draw 4 simplified cube wheels now relative to mainbody.
+    //glBindTexture(GL_TEXTURE_2D, wheelTextureID);
+    const float carPosX[4] = {-0.5f,-0.5f,0.5f,0.5f};
+    const float carPosZ[4] = {0.5f,-0.5f,0.5f,-0.5f};
+    for(int i = 0; i < 4; i++) {
+      mat4 carWheelWorldMatrix = carWorldMatrix * 
+                            scale(mat4(1.0f), vec3(0.4f, 0.4f, 0.2f)) *
+                            translate(mat4(1.0f), vec3(5*carPosX[i], -0.5f, 5*carPosZ[i]));
+      rotationMatrix =
+        glm::rotate(mat4(1.0f), 10*angle, glm::vec3(0.0f, 0.0f, 1.0f));
+      carWheelWorldMatrix = carWheelWorldMatrix * rotationMatrix;
+      setWorldMatrix(texturedShaderProgram, carWheelWorldMatrix);
+      glDrawArrays(GL_TRIANGLES, 0, 36);
+    }
+
 
     // Draw colored geometry
     glUseProgram(colorShaderProgram);
@@ -685,3 +711,4 @@ int createTexturedCubeVertexArrayObject() {
 
   return vertexArrayObject;
 }
+
